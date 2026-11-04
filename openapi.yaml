@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: SERF · API FinanCorp
-  description: "Inventario por filial , ventas, configuración y reportes en EUR. Login:\
+  description: "Inventario por filial ,, ventas, configuración y reportes en EUR. Login:\
     \ POST /api/auth/login. Usa Authorization: Bearer TOKEN. YAML: /v3/api-docs.yaml."
   version: 1.0.0
 servers:
