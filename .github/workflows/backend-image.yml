@@ -1,4 +1,4 @@
-name: Build and publish backend image
+name: Build and publish backend image to ACR
 
 on:
   push:
@@ -10,10 +10,10 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 env:
   BUILDKIT_PROGRESS: plain
+  IMAGE_NAME: backendjeremy
 
 jobs:
   build-and-publish:
@@ -58,23 +58,41 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Validate ACR secrets
+        env:
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        run: |
+          missing=0
+          for name in ACR_LOGIN_SERVER ACR_USERNAME ACR_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing GitHub secret::$name is empty or not configured."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Configure the missing secrets in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Log in to Azure Container Registry
         id: login
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
 
       - name: Set image name
         id: image
         env:
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
         shell: bash
         run: |
-          owner_lower=$(printf '%s' "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
-          echo "name=ghcr.io/$owner_lower/backendjeremy" >> "$GITHUB_OUTPUT"
-          echo "Image: ghcr.io/$owner_lower/backendjeremy" | tee -a diagnostics/workflow.log
+          registry_lower=$(printf '%s' "$ACR_LOGIN_SERVER" | tr '[:upper:]' '[:lower:]')
+          echo "name=$registry_lower/$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "Image: $registry_lower/$IMAGE_NAME" | tee -a diagnostics/workflow.log
 
       - name: Read application version
         id: version
@@ -108,7 +126,7 @@ jobs:
             echo "- Job: **$result**"
             echo "- Maven: **${{ steps.maven.outcome || 'not run' }}**"
             echo "- Buildx: **${{ steps.buildx.outcome || 'not run' }}**"
-            echo "- GHCR login: **${{ steps.login.outcome || 'not run' }}**"
+            echo "- ACR login: **${{ steps.login.outcome || 'not run' }}**"
             echo "- Image publish: **${{ steps.publish.outcome || 'not run' }}**"
             echo "- Image: `${{ steps.image.outputs.name }}:${{ steps.version.outputs.value }}`"
             echo "- Run: #$GITHUB_RUN_ID (attempt $GITHUB_RUN_ATTEMPT)"
