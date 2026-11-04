@@ -1,0 +1,4 @@
+com\financorp\serf\reportes\DecoratorTest.class
+com\financorp\serf\config\ConfiguracionGlobalTest.class
+com\financorp\serf\reportes\ReporteBuilderTest.class
+com\financorp\serf\reportes\SeccionCompuestaTest.class

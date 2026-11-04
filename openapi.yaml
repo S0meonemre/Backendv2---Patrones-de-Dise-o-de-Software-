@@ -1,0 +1,819 @@
+openapi: 3.0.1
+info:
+  title: SERF · API FinanCorp
+  description: "Inventario por filial, ventas, configuración y reportes en EUR. Login:\
+    \ POST /api/auth/login. Usa Authorization: Bearer TOKEN. YAML: /v3/api-docs.yaml."
+  version: 1.0.0
+servers:
+- url: /
+security:
+- bearerAuth: []
+tags:
+- name: Ventas
+  description: Transacciones por filial con conversión a EUR y descuento de inventario
+- name: Reportes
+  description: Reportes corporativos por período y filial
+- name: Productos
+  description: Inventario de lotes importados por filial
+- name: Autenticacion
+  description: Login con usuario y contrasena almacenados en la base de datos
+paths:
+  /api/ventas:
+    get:
+      tags:
+      - Ventas
+      summary: Listar ventas con producto y filial
+      operationId: listar
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Venta"
+    post:
+      tags:
+      - Ventas
+      summary: Registrar venta y descontar stock en una transacción
+      operationId: registrar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VentaRequest"
+        required: true
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Venta"
+  /api/reportes/generar:
+    post:
+      tags:
+      - Reportes
+      summary: Generar reporte completo
+      description: "Períodos: MENSUAL AAAA-MM; TRIMESTRAL AAAA-Q1 a AAAA-Q4; ANUAL\
+        \ AAAA. filialId nulo consolida todas las filiales."
+      operationId: generar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReporteRequest"
+            examples:
+              Mensual:
+                description: Mensual
+                value:
+                  tipo: MENSUAL
+                  periodo: 2026-11
+                  marcaAgua: true
+                  firmaDigital: true
+              Trimestral:
+                description: Trimestral
+                value:
+                  tipo: TRIMESTRAL
+                  periodo: 2026-Q4
+                  filialId: 1
+              Anual:
+                description: Anual
+                value:
+                  tipo: ANUAL
+                  periodo: "2026"
+        required: true
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ReporteResponse"
+  /api/productos:
+    get:
+      tags:
+      - Productos
+      summary: "Listar productos, stock y filial"
+      operationId: listar_1
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Producto"
+    post:
+      tags:
+      - Productos
+      summary: Registrar lote y convertir su costo unitario a EUR
+      operationId: crear
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductoRequest"
+        required: true
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Producto"
+  /api/auth/login:
+    post:
+      tags:
+      - Autenticacion
+      summary: Iniciar sesion
+      description: "Devuelve un token que se envia como Authorization: Bearer TOKEN."
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+      security: []
+  /api/productos/{id}:
+    get:
+      tags:
+      - Productos
+      summary: Consultar un producto por ID
+      operationId: obtener
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Producto"
+  /api/filiales:
+    get:
+      tags:
+      - Filiales
+      summary: Consultar filiales disponibles y su moneda local
+      operationId: listar_2
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Filial"
+  /api/configuracion:
+    get:
+      tags:
+      - Configuración
+      summary: Consultar moneda corporativa y tasas educativas hacia EUR
+      operationId: obtener_1
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ConfiguracionResponse"
+  /api/auth/me:
+    get:
+      tags:
+      - Autenticacion
+      summary: Consultar el usuario autenticado
+      operationId: usuarioActual
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UsuarioResponse"
+components:
+  schemas:
+    VentaRequest:
+      required:
+      - cantidad
+      - cliente
+      - fechaVenta
+      - filialId
+      - metodoPago
+      - moneda
+      - numeroFactura
+      - precioUnitario
+      - productoId
+      - vendedor
+      type: object
+      properties:
+        numeroFactura:
+          maxLength: 80
+          minLength: 0
+          type: string
+        fechaVenta:
+          type: string
+          format: date
+        productoId:
+          type: integer
+          format: int64
+        filialId:
+          type: integer
+          format: int64
+        cantidad:
+          type: integer
+          format: int32
+        precioUnitario:
+          minimum: 0.01
+          exclusiveMinimum: false
+          type: number
+        moneda:
+          pattern: CNY|PEN|USD|EUR
+          type: string
+        cliente:
+          maxLength: 200
+          minLength: 0
+          type: string
+        vendedor:
+          maxLength: 200
+          minLength: 0
+          type: string
+        metodoPago:
+          pattern: EFECTIVO|TARJETA|TRANSFERENCIA
+          type: string
+    Filial:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        nombre:
+          type: string
+        pais:
+          type: string
+        monedaLocal:
+          type: string
+    Producto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        codigo:
+          type: string
+        nombre:
+          type: string
+        descripcionTecnica:
+          type: string
+        categoria:
+          type: string
+        costoImportacion:
+          type: number
+        monedaOrigen:
+          type: string
+        precioVentaSugerido:
+          type: number
+        monedaLocal:
+          type: string
+        proveedor:
+          type: string
+        fechaImportacion:
+          type: string
+          format: date
+        stock:
+          type: integer
+          format: int32
+        stockInicial:
+          type: integer
+          format: int32
+        costoImportacionEur:
+          type: number
+        filial:
+          $ref: "#/components/schemas/Filial"
+    Venta:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        numeroFactura:
+          type: string
+        fechaVenta:
+          type: string
+          format: date
+        producto:
+          $ref: "#/components/schemas/Producto"
+        filial:
+          $ref: "#/components/schemas/Filial"
+        cantidad:
+          type: integer
+          format: int32
+        precioUnitario:
+          type: number
+        moneda:
+          type: string
+        montoEur:
+          type: number
+        cliente:
+          type: string
+        vendedor:
+          type: string
+        metodoPago:
+          type: string
+    ReporteRequest:
+      required:
+      - periodo
+      - tipo
+      type: object
+      properties:
+        tipo:
+          pattern: MENSUAL|TRIMESTRAL|ANUAL
+          type: string
+        periodo:
+          type: string
+        filialId:
+          type: integer
+          format: int64
+        marcaAgua:
+          type: boolean
+        firmaDigital:
+          type: boolean
+    Alcance:
+      type: object
+      properties:
+        filial:
+          type: string
+        desde:
+          type: string
+        hasta:
+          type: string
+    DatoGrafico:
+      type: object
+      properties:
+        etiqueta:
+          type: string
+        valor:
+          type: number
+    FilaVenta:
+      type: object
+      properties:
+        factura:
+          type: string
+        fecha:
+          type: string
+        producto:
+          type: string
+        filial:
+          type: string
+        cantidad:
+          type: integer
+          format: int32
+        moneda:
+          type: string
+        totalLocal:
+          type: number
+        totalEur:
+          type: number
+    Firma:
+      type: object
+      properties:
+        algoritmo:
+          type: string
+        valor:
+          type: string
+        clavePublica:
+          type: string
+        contenidoBase64:
+          type: string
+        alcance:
+          type: string
+    ReporteResponse:
+      type: object
+      properties:
+        tipo:
+          type: string
+        periodo:
+          type: string
+        monedaCorporativa:
+          type: string
+        titulo:
+          type: string
+        secciones:
+          type: array
+          items:
+            $ref: "#/components/schemas/Seccion"
+        conclusiones:
+          type: array
+          items:
+            type: string
+        resumen:
+          $ref: "#/components/schemas/Resumen"
+        tablaVentas:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilaVenta"
+        graficos:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatoGrafico"
+        alcance:
+          $ref: "#/components/schemas/Alcance"
+        marcaAgua:
+          type: string
+        firmaDigital:
+          $ref: "#/components/schemas/Firma"
+      description: "Reporte ensamblado, con secciones jerárquicas, tabla, gráficos\
+        \ y decoradores opcionales."
+    Resumen:
+      type: object
+      properties:
+        ingresos:
+          type: number
+        gastosImportacion:
+          type: number
+        saldo:
+          type: number
+        operaciones:
+          type: integer
+          format: int32
+        unidadesVendidas:
+          type: integer
+          format: int32
+    Seccion:
+      type: object
+      properties:
+        nombre:
+          type: string
+        total:
+          type: number
+    ProductoRequest:
+      required:
+      - categoria
+      - codigo
+      - costoImportacion
+      - descripcionTecnica
+      - fechaImportacion
+      - filialId
+      - monedaLocal
+      - monedaOrigen
+      - nombre
+      - precioVentaSugerido
+      - proveedor
+      - stock
+      type: object
+      properties:
+        codigo:
+          maxLength: 60
+          minLength: 0
+          type: string
+          example: SMP-PE-001
+        nombre:
+          maxLength: 200
+          minLength: 0
+          type: string
+          example: Smartphone Nova X
+        descripcionTecnica:
+          maxLength: 2000
+          minLength: 0
+          type: string
+        categoria:
+          maxLength: 100
+          minLength: 0
+          type: string
+          example: Smartphone
+        costoImportacion:
+          minimum: 0.01
+          exclusiveMinimum: false
+          type: number
+        monedaOrigen:
+          pattern: CNY|PEN|USD|EUR
+          type: string
+          example: CNY
+        precioVentaSugerido:
+          minimum: 0.01
+          exclusiveMinimum: false
+          type: number
+        monedaLocal:
+          pattern: CNY|PEN|USD|EUR
+          type: string
+          example: PEN
+        proveedor:
+          maxLength: 200
+          minLength: 0
+          type: string
+        fechaImportacion:
+          type: string
+          format: date
+        stock:
+          type: integer
+          format: int32
+        filialId:
+          type: integer
+          format: int64
+      description: Nuevo lote de importación. El servidor fija el stock inicial y
+        costo en EUR.
+    LoginRequest:
+      required:
+      - password
+      - username
+      type: object
+      properties:
+        username:
+          pattern: "[a-zA-Z0-9._-]{3,80}"
+          type: string
+        password:
+          maxLength: 72
+          minLength: 0
+          type: string
+          writeOnly: true
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        tokenType:
+          type: string
+        expiresIn:
+          type: integer
+          format: int64
+        usuario:
+          $ref: "#/components/schemas/UsuarioResponse"
+    UsuarioResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        rol:
+          type: string
+    ConfiguracionResponse:
+      type: object
+      properties:
+        monedaCorporativa:
+          type: string
+        tasasDeCambio:
+          type: object
+          additionalProperties:
+            type: number
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
