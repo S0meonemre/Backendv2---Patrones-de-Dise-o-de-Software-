@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, Object>> unauthorized(AuthenticationException ex) {
         return error(HttpStatus.UNAUTHORIZED, "Usuario o contrasena incorrectos.");
