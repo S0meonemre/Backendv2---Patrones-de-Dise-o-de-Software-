@@ -1,0 +1,124 @@
+name: Build and publish backend image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  BUILDKIT_PROGRESS: plain
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Start diagnostic log
+        run: |
+          mkdir -p diagnostics
+          {
+            echo "Workflow: $GITHUB_WORKFLOW"
+            echo "Run: $GITHUB_RUN_ID (attempt $GITHUB_RUN_ATTEMPT)"
+            echo "Commit: $GITHUB_SHA"
+            echo "Ref: $GITHUB_REF"
+            echo "Runner: $RUNNER_OS"
+            echo "Started: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } | tee diagnostics/workflow.log
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Build application
+        id: maven
+        run: |
+          set -o pipefail
+          {
+            echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Starting Maven package"
+            mvn --batch-mode --no-transfer-progress --show-version clean package
+            result=$?
+            echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Maven exit code: $result"
+            exit "$result"
+          } 2>&1 | tee diagnostics/maven.log
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        id: login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image name
+        id: image
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          owner_lower=$(printf '%s' "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
+          echo "name=ghcr.io/$owner_lower/backendjeremy" >> "$GITHUB_OUTPUT"
+          echo "Image: ghcr.io/$owner_lower/backendjeremy" | tee -a diagnostics/workflow.log
+
+      - name: Read application version
+        id: version
+        run: |
+          version=$(python3 -c 'import xml.etree.ElementTree as ET; root=ET.parse("pom.xml").getroot(); ns={"m":"http://maven.apache.org/POM/4.0.0"}; print(root.findtext("m:version", namespaces=ns))')
+          if [ -z "$version" ]; then
+            echo "::error::Could not read project version from pom.xml"
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "Version: $version" | tee -a diagnostics/workflow.log
+
+      - name: Build and publish backend image
+        id: publish
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ steps.version.outputs.value }}
+            ${{ steps.image.outputs.name }}:latest
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write final job status
+        if: always()
+        run: |
+          result="${{ job.status }}"
+          echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Job result: $result" | tee -a diagnostics/workflow.log
+          {
+            echo "## Backend image diagnostics"
+            echo "- Job: **$result**"
+            echo "- Maven: **${{ steps.maven.outcome || 'not run' }}**"
+            echo "- Buildx: **${{ steps.buildx.outcome || 'not run' }}**"
+            echo "- GHCR login: **${{ steps.login.outcome || 'not run' }}**"
+            echo "- Image publish: **${{ steps.publish.outcome || 'not run' }}**"
+            echo "- Image: `${{ steps.image.outputs.name }}:${{ steps.version.outputs.value }}`"
+            echo "- Run: #$GITHUB_RUN_ID (attempt $GITHUB_RUN_ATTEMPT)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-image-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 7
